@@ -54,14 +54,17 @@ class Metric:
     def signature(self):
         return self.eigVals
 
+    def basis_dim(self):
+        return 2 ** self.eigVals.shape[0]
+
     def transform(self, x_idx, x_weight, basis):
-        result = np.zeros(shape=2 ** self.eigVals.shape[0])
+        result = np.zeros(shape=self.basis_dim())
         result[0] = x_weight
 
         i = 0
         while x_idx != 0:
             if (x_idx & 1) == 1:
-                tmp = np.zeros(shape=2 ** self.eigVals.shape[0])
+                tmp = np.zeros(shape=self.basis_dim())
                 nonzeroCols = np.nonzero(basis[:, i])[0]
                 for j in nonzeroCols:
                     basis_val = basis[j, i]
@@ -108,19 +111,18 @@ def geometricProduct(a, b, metric):
 
     return metric.toMetric(result)
 
-def generateGeometricProduct(a, metric):
-    A = metric.toBasis(a)
-    nonzeroA, _ = np.nonzero(A)
-    # ANIS TODO: Use the following? Or force ones below?
-    B = metric.toBasis(np.ones_like(a))
-    nonzeroB, _ = np.nonzero(B)
+# NOTE: use einsum to multiply with the op generated
+def generateGeometricProduct(metric, store_sparse=False):
+    basis_size = metric.basis_dim()
 
-    result = np.zeros_like(shape=(A.shape[0], A.shape[0]))
-    for i in nonzeroA:
-        for j in A.shape[0]:
-            # ANIS TODO: Use the following? Or and entry of B above?
-            blade_idx, blade_val = geometricProductBlades(i, A[i], j, 1.0, metric)
-            # ANIS TODO: Transpose the following?
-            result[i, blade_idx] += blade_val
+    op = np.zeros(shape=(basis_size, basis_size, basis_size))
+    for i in range(basis_size):
+        it = np.zeros(shape=basis_size)
+        it[i] = 1.0
+        for j in range(basis_size):
+            jt = np.zeros(shape=basis_size)
+            jt[j] = 1.0
 
-    return metric.toMetric(result)
+            op[i, j, :] = geometricProduct(it, jt, metric)
+
+    return op

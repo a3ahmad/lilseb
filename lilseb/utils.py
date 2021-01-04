@@ -15,4 +15,4 @@ def is_diagonal(M, eps=1e-6):
 def to_sparse(dense):
     indices = torch.nonzero(dense).t()
     values = dense[indices[0], indices[1], indices[2]]
-    torch.sparse.FloatTensor(indices, values, dense.size())
+    return torch.sparse.FloatTensor(indices, values, dense.size())
