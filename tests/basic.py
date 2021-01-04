@@ -1,5 +1,7 @@
 import numpy as np
-from algebra import *
+
+from lilseb.algebra import *
+
 A = np.array([[0,0,0,0,-1],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[-1,0,0,0,0]])
 M = Metric(A)
 v1 = np.zeros(M.basis_dim())
@@ -16,5 +18,8 @@ print(indices)
 print("{0:b}".format(indices[-1]))
 print(r[indices])
 
-gp = generateGeometricProduct(M)
-print(np.nonzero(gp)[0].shape)
+r = np.einsum('ijk,i,j', M.geometricProductTensor, v2, v5)
+indices = np.nonzero(r)[0]
+print(indices)
+print("{0:b}".format(indices[-1]))
+print(r[indices])

@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 def bit_count(x):
     x = int(x)
@@ -12,7 +11,3 @@ def is_symmetric(M, eps=1e-6):
 def is_diagonal(M, eps=1e-6):
     return np.all(np.abs(M - np.diag(np.diagonal(M))) < eps)
 
-def to_sparse(dense):
-    indices = torch.nonzero(dense).t()
-    values = dense[indices[0], indices[1], indices[2]]
-    return torch.sparse.FloatTensor(indices, values, dense.size())

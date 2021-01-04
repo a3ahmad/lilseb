@@ -1,5 +1,6 @@
 import numpy as np
-from utils import bit_count, is_symmetric
+
+from .utils import bit_count, is_symmetric
 
 def canonicalReorderingSignEuclidean(a_idx, b_idx):
     a = a_idx >> 1
@@ -42,6 +43,36 @@ def outerProductBlades(a_idx, a_weight, b_idx, b_weight, metric = None):
     else:
         return geometricProductBlades(a_idx, a_weight, b_idx, b_weight, metric)
 
+def geometricProduct(a, b, metric):
+    A = metric.toBasis(a)
+    nonzeroA = np.nonzero(A)[0]
+    B = metric.toBasis(b)
+    nonzeroB = np.nonzero(B)[0]
+
+    result = np.zeros_like(A)
+    for i in nonzeroA:
+        for j in nonzeroB:
+            blade_idx, blade_val = geometricProductBlades(i, A[i], j, B[j], metric)
+            result[blade_idx] += blade_val
+
+    return metric.toMetric(result)
+
+# NOTE: use einsum to multiply with the op generated
+def generateGeometricProduct(metric):
+    basis_size = metric.basis_dim()
+
+    op = np.zeros(shape=(basis_size, basis_size, basis_size))
+    for i in range(basis_size):
+        it = np.zeros(shape=basis_size)
+        it[i] = 1.0
+        for j in range(basis_size):
+            jt = np.zeros(shape=basis_size)
+            jt[j] = 1.0
+
+            op[i, j, :] = geometricProduct(it, jt, metric)
+
+    return op
+
 class Metric:
     def __init__(self, metric_array):
         assert(is_symmetric(metric_array))
@@ -50,6 +81,8 @@ class Metric:
 
         self.eigVals, self.eigVecs = np.linalg.eig(self.metric_array)
         self.invEigVecs = np.linalg.inv(self.eigVecs)
+
+        self.geometricProductTensor = generateGeometricProduct(self)
 
     def signature(self):
         return self.eigVals
@@ -96,33 +129,3 @@ class Metric:
             result = result + self.transform(i, x[i], self.invEigVecs)
 
         return result
-
-def geometricProduct(a, b, metric):
-    A = metric.toBasis(a)
-    nonzeroA = np.nonzero(A)[0]
-    B = metric.toBasis(b)
-    nonzeroB = np.nonzero(B)[0]
-
-    result = np.zeros_like(A)
-    for i in nonzeroA:
-        for j in nonzeroB:
-            blade_idx, blade_val = geometricProductBlades(i, A[i], j, B[j], metric)
-            result[blade_idx] += blade_val
-
-    return metric.toMetric(result)
-
-# NOTE: use einsum to multiply with the op generated
-def generateGeometricProduct(metric, store_sparse=False):
-    basis_size = metric.basis_dim()
-
-    op = np.zeros(shape=(basis_size, basis_size, basis_size))
-    for i in range(basis_size):
-        it = np.zeros(shape=basis_size)
-        it[i] = 1.0
-        for j in range(basis_size):
-            jt = np.zeros(shape=basis_size)
-            jt[j] = 1.0
-
-            op[i, j, :] = geometricProduct(it, jt, metric)
-
-    return op
