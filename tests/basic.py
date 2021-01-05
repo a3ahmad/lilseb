@@ -18,8 +18,13 @@ print(indices)
 print("{0:b}".format(indices[-1]))
 print(r[indices])
 
-r = np.einsum('ijk,i,j', M.geometricProductTensor, v2, v5)
+r = np.einsum('ijk,i,j->k', M.geometricProductTensor, v2, v5)
 indices = np.nonzero(r)[0]
 print(indices)
 print("{0:b}".format(indices[-1]))
 print(r[indices])
+
+a = np.random.rand(3, 8, 32)
+b = np.random.rand(8, 16, 32)
+result = np.einsum('ijk,bpi,poj->bok', M.geometricProductTensor, a, b)
+print(result.shape)

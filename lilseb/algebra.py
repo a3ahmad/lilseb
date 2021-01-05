@@ -83,6 +83,13 @@ class Metric:
         self.invEigVecs = np.linalg.inv(self.eigVecs)
 
         self.geometricProductTensor = generateGeometricProduct(self)
+        self.platformSpecificGPTensor = None
+
+    def getGP(self):
+        return self.platformSpecificGPTensor
+
+    def setPlatformSpecificGP(self, gptensor):
+        self.platformSpecificGPTensor = gptensor
 
     def signature(self):
         return self.eigVals

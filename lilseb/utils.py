@@ -10,4 +10,3 @@ def is_symmetric(M, eps=1e-6):
 
 def is_diagonal(M, eps=1e-6):
     return np.all(np.abs(M - np.diag(np.diagonal(M))) < eps)
-
