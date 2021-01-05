@@ -1,6 +1,7 @@
 import numpy as np
 
 from lilseb.algebra import *
+from lilseb.pytorch import *
 
 A = np.array([[0,0,0,0,-1],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[-1,0,0,0,0]])
 M = Metric(A)
@@ -28,6 +29,3 @@ a = np.random.rand(3, 8, 32)
 b = np.random.rand(8, 16, 32)
 result = np.einsum('ijk,bpi,poj->bok', M.geometricProductTensor, a, b)
 print(result.shape)
-
-from lilseb.algebra import *
-from lilseb.pytorch import *
