@@ -7,6 +7,8 @@ from .algebra import Metric
 
 
 class ConvertLinearToGA(nn.Module):
+    # Converts inputs of batch_size x num_input_features
+    # to batch_size x num_output_features x ga_basis_dim
     def __init__(
             self,
             metric: Metric,
@@ -25,6 +27,8 @@ class ConvertLinearToGA(nn.Module):
 
 
 class ConvertGAToLinear(nn.Module):
+    # Converts inputs of batch_size x num_input_features x ga_basis_dim
+    # to batch_size x num_output_features
     def __init__(
             self,
             metric: Metric,
@@ -42,6 +46,8 @@ class ConvertGAToLinear(nn.Module):
 
 
 class Convert1DToGA(nn.Module):
+    # Converts inputs from NCW to NCWG, were G is the geometric algebra
+    # basis dimension
     def __init__(
             self,
             metric: Metric,
@@ -62,6 +68,7 @@ class Convert1DToGA(nn.Module):
 
 
 class ConvertGATo1D(nn.Module):
+    # Converts inputs from NCWG to NCW
     def __init__(
             self,
             metric: Metric,
@@ -77,6 +84,7 @@ class ConvertGATo1D(nn.Module):
 
 
 class Convert2DToGA(nn.Module):
+    # Converts inputs from NCHW to NCHWG
     def __init__(
             self,
             in_channels: int,
@@ -96,6 +104,7 @@ class Convert2DToGA(nn.Module):
 
 
 class ConvertGATo2D(nn.Module):
+    # Converts inputs from NCHWG to NCHW
     def __init__(
             self,
             metric: Metric,
@@ -111,6 +120,7 @@ class ConvertGATo2D(nn.Module):
 
 
 class Convert3DToGA(nn.Module):
+    # Converts inputs from NCDHW to NCDHWG
     def __init__(
             self,
             in_channels: int,
@@ -130,6 +140,7 @@ class Convert3DToGA(nn.Module):
 
 
 class ConvertGATo3D(nn.Module):
+    # Converts inputs from NCDHWG to NCDHW
     def __init__(
             self,
             metric: Metric,
@@ -169,6 +180,12 @@ class GPLinear(nn.Module):
         result = None
         if not self.versor:
             result = torch.einsum(
+                # i = output GA component
+                # j = input GA 'a' component
+                # k = input GA 'b' component
+                # b = batch number
+                # p = input feature
+                # o = output feature
                 'ijk,bpi,poj->bok',
                 self.metric.geometricProductTensor, x, self.W)
             if self.bias:
@@ -214,7 +231,15 @@ class GPConv1D(nn.Module):
             x = F.pad(x, self.padding, self.padding_mode)
             x = x.unfold(2, self.W.shape[0], self.stride[0])
             result = torch.einsum(
-                'ijk,bcwki,kcoj->bohk',
+                # i = output GA component
+                # j = input GA 'a' component
+                # k = input GA 'b' component
+                # b = batch number
+                # c = image channel
+                # w = image width
+                # v = convolution width
+                # o = output channel
+                'ijk,bcwvi,vcoj->bohk',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -261,7 +286,17 @@ class GPConv2D(nn.Module):
             x = x.unfold(2, self.W.shape[0], self.stride[0])
             x = x.unfold(3, self.W.shape[1], self.stride[1])
             result = torch.einsum(
-                'ijk,bchwlki,lkcoj->bohwk',
+                # i = output GA component
+                # j = input GA 'a' component
+                # k = input GA 'b' component
+                # b = batch number
+                # c = image channel
+                # h = image height
+                # w = image width
+                # l = convolution height
+                # v = convolution width
+                # o = output channel
+                'ijk,bchwlvi,lvcoj->bohwk',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -310,7 +345,19 @@ class GPConv3D(nn.Module):
             x = x.unfold(3, self.W.shape[1], self.stride[1])
             x = x.unfold(4, self.W.shape[2], self.stride[2])
             result = torch.einsum(
-                'ijk,bcdhwmlki,mlkcoj->bodhwk',
+                # i = output GA component
+                # j = input GA 'a' component
+                # k = input GA 'b' component
+                # b = batch number
+                # c = image channel
+                # d = image depth
+                # h = image height
+                # w = image width
+                # m = convolution depth
+                # l = convolution height
+                # v = convolution width
+                # o = output channel
+                'ijk,bcdhwmlvi,mlvcoj->bodhwk',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
