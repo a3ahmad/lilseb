@@ -42,7 +42,9 @@ class ConvertGAToLinear(nn.Module):
 
     def forward(self, x):
         return self.layer(
-            x.view(x.shape[0], self.in_features * self.metric.basis_dim()))
+                x.view(
+                    x.shape[0],
+                    self.in_features * self.metric.basis_dim()))
 
 
 class Convert1DToGA(nn.Module):
@@ -60,11 +62,17 @@ class Convert1DToGA(nn.Module):
             padding_mode: str = 'zeros'):
         super(Convert1DToGA, self).__init__()
 
-        # ANIS TODO
+        self.metric = metric
+        self.out_channels = out_channels
+        self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
+        result = self.layer(x)
+        return result.view(
+            result.shape[0],
+            self.out_features,
+            self.metric.basis_dim(),
+            result.shape[2])
 
 
 class ConvertGATo1D(nn.Module):
@@ -72,15 +80,24 @@ class ConvertGATo1D(nn.Module):
     def __init__(
             self,
             metric: Metric,
-            in_features: int,
-            out_features: int):
+            in_channels: int,
+            out_channels: int,
+            kernel_size: _size_1_t,
+            stride: _size_1_t = 1,
+            padding: _size_1_t = 0,
+            bias: bool = True,
+            padding_mode: str = 'zeros'):
         super(Convert1DToGA, self).__init__()
 
-        # ANIS TODO
+        self.metric = metric
+        self.in_channels = in_channels
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
+        return self.layer(x.view(
+            x.shape[0],
+            self.in_channels * self.metric.basis_dim(),
+            x.shape[3]))
 
 
 class Convert2DToGA(nn.Module):
@@ -96,11 +113,18 @@ class Convert2DToGA(nn.Module):
             padding_mode: str = 'zeros'):
         super(Convert2DToGA, self).__init__()
 
-        # ANIS TODO
+        self.metric = metric
+        self.out_channels = out_channels
+        self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
+        result = self.layer(x)
+        return result.view(
+            result.shape[0],
+            self.out_features,
+            self.metric.basis_dim(),
+            result.shape[2],
+            result.shape[3])
 
 
 class ConvertGATo2D(nn.Module):
@@ -112,11 +136,16 @@ class ConvertGATo2D(nn.Module):
             out_features: int):
         super(Convert2DToGA, self).__init__()
 
-        # ANIS TODO
+        self.metric = metric
+        self.in_channels = in_channels
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
+        return self.layer(x.view(
+            x.shape[0],
+            self.in_channels * self.metric.basis_dim(),
+            x.shape[3],
+            x.shape[4]))
 
 
 class Convert3DToGA(nn.Module):
@@ -132,12 +161,19 @@ class Convert3DToGA(nn.Module):
             padding_mode: str = 'zeros'):
         super(Convert3DToGA, self).__init__()
 
-        # ANIS TODO
+       self.metric = metric
+        self.out_channels = out_channels
+        self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
-
+        result = self.layer(x)
+        return result.view(
+            result.shape[0],
+            self.out_features,
+            self.metric.basis_dim(),
+            result.shape[2],
+            result.shape[3],
+            result.shape[4])
 
 class ConvertGATo3D(nn.Module):
     # Converts inputs from NCDHWG to NCDHW
@@ -148,11 +184,17 @@ class ConvertGATo3D(nn.Module):
             out_features: int):
         super(ConvertGATo3D, self).__init__()
 
-        # ANIS TODO
+        self.metric = metric
+        self.in_channels = in_channels
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
     def forward(self, x):
-        # ANIS TODO
-        pass
+        return self.layer(x.view(
+            x.shape[0],
+            self.in_channels * self.metric.basis_dim(),
+            x.shape[3],
+            x.shape[4],
+            x.shape[5]))
 
 
 class GPLinear(nn.Module):
@@ -180,9 +222,9 @@ class GPLinear(nn.Module):
         result = None
         if not self.versor:
             result = torch.einsum(
-                # i = output GA component
-                # j = input GA 'a' component
-                # k = input GA 'b' component
+                # i = input GA 'a' component
+                # j = input GA 'b' component
+                # k = output GA component
                 # b = batch number
                 # p = input feature
                 # o = output feature
@@ -231,15 +273,15 @@ class GPConv1D(nn.Module):
             x = F.pad(x, self.padding, self.padding_mode)
             x = x.unfold(2, self.W.shape[0], self.stride[0])
             result = torch.einsum(
-                # i = output GA component
-                # j = input GA 'a' component
-                # k = input GA 'b' component
+                # i = input GA 'a' component
+                # j = input GA 'b' component
+                # k = output GA component
                 # b = batch number
                 # c = image channel
                 # w = image width
                 # v = convolution width
                 # o = output channel
-                'ijk,bcwvi,vcoj->bohk',
+                'ijk,bcwvi,vcoj->bokh',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -286,9 +328,9 @@ class GPConv2D(nn.Module):
             x = x.unfold(2, self.W.shape[0], self.stride[0])
             x = x.unfold(3, self.W.shape[1], self.stride[1])
             result = torch.einsum(
-                # i = output GA component
-                # j = input GA 'a' component
-                # k = input GA 'b' component
+                # i = input GA 'a' component
+                # j = input GA 'b' component
+                # k = output GA component
                 # b = batch number
                 # c = image channel
                 # h = image height
@@ -296,7 +338,7 @@ class GPConv2D(nn.Module):
                 # l = convolution height
                 # v = convolution width
                 # o = output channel
-                'ijk,bchwlvi,lvcoj->bohwk',
+                'ijk,bchwlvi,lvcoj->bokhw',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -345,9 +387,9 @@ class GPConv3D(nn.Module):
             x = x.unfold(3, self.W.shape[1], self.stride[1])
             x = x.unfold(4, self.W.shape[2], self.stride[2])
             result = torch.einsum(
-                # i = output GA component
-                # j = input GA 'a' component
-                # k = input GA 'b' component
+                # i = input GA 'a' component
+                # j = input GA 'b' component
+                # k = output GA component
                 # b = batch number
                 # c = image channel
                 # d = image depth
@@ -357,7 +399,7 @@ class GPConv3D(nn.Module):
                 # l = convolution height
                 # v = convolution width
                 # o = output channel
-                'ijk,bcdhwmlvi,mlvcoj->bodhwk',
+                'ijk,bcdhwmlvi,mlvcoj->bokdhw',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
