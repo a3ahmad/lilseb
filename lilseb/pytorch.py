@@ -48,7 +48,7 @@ class ConvertGAToLinear(nn.Module):
 
 
 class Convert1DToGA(nn.Module):
-    # Converts inputs from NCW to NCWG, were G is the geometric algebra
+    # Converts inputs from NCW to NCGW, were G is the geometric algebra
     # basis dimension
     def __init__(
             self,
@@ -76,7 +76,7 @@ class Convert1DToGA(nn.Module):
 
 
 class ConvertGATo1D(nn.Module):
-    # Converts inputs from NCWG to NCW
+    # Converts inputs from NCGW to NCW
     def __init__(
             self,
             metric: Metric,
@@ -101,7 +101,7 @@ class ConvertGATo1D(nn.Module):
 
 
 class Convert2DToGA(nn.Module):
-    # Converts inputs from NCHW to NCHWG
+    # Converts inputs from NCHW to NCGHW
     def __init__(
             self,
             in_channels: int,
@@ -128,7 +128,7 @@ class Convert2DToGA(nn.Module):
 
 
 class ConvertGATo2D(nn.Module):
-    # Converts inputs from NCHWG to NCHW
+    # Converts inputs from NCGHW to NCHW
     def __init__(
             self,
             metric: Metric,
@@ -149,7 +149,7 @@ class ConvertGATo2D(nn.Module):
 
 
 class Convert3DToGA(nn.Module):
-    # Converts inputs from NCDHW to NCDHWG
+    # Converts inputs from NCDHW to NCGDHW
     def __init__(
             self,
             in_channels: int,
@@ -176,7 +176,7 @@ class Convert3DToGA(nn.Module):
             result.shape[4])
 
 class ConvertGATo3D(nn.Module):
-    # Converts inputs from NCDHWG to NCDHW
+    # Converts inputs from NCGDHW to NCDHW
     def __init__(
             self,
             metric: Metric,
@@ -281,7 +281,7 @@ class GPConv1D(nn.Module):
                 # w = image width
                 # v = convolution width
                 # o = output channel
-                'ijk,bcwvi,vcoj->bokh',
+                'ijk,bciwv,vcoj->bokh',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -338,7 +338,7 @@ class GPConv2D(nn.Module):
                 # l = convolution height
                 # v = convolution width
                 # o = output channel
-                'ijk,bchwlvi,lvcoj->bokhw',
+                'ijk,bcihwlv,lvcoj->bokhw',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
@@ -399,7 +399,7 @@ class GPConv3D(nn.Module):
                 # l = convolution height
                 # v = convolution width
                 # o = output channel
-                'ijk,bcdhwmlvi,mlvcoj->bokdhw',
+                'ijk,bcidhwmlv,mlvcoj->bokdhw',
                 self.metric.geometricProductTensor, x, self.W)
             if self.b is not None:
                 result = result + self.b
