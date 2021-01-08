@@ -161,7 +161,7 @@ class Convert3DToGA(nn.Module):
             padding_mode: str = 'zeros'):
         super(Convert3DToGA, self).__init__()
 
-       self.metric = metric
+        self.metric = metric
         self.out_channels = out_channels
         self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
