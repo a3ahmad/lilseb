@@ -90,8 +90,11 @@ class Metric:
     def signature(self):
         return self.eig_vals
 
+    def dims(self):
+        return self.eig_vals.shape[0]
+
     def basis_dim(self):
-        return 2 ** self.eig_vals.shape[0]
+        return 2 ** self.dims()
 
     def transform(self, x_idx, x_weight, basis):
         result = np.zeros(shape=self.basis_dim())

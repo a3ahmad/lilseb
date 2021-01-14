@@ -6,6 +6,22 @@ from torch.nn.common_types import _size_1_t, _size_2_t, _size_3_t
 from .algebra import Metric
 
 
+class SimpleGAEmbedding(nn.Module):
+    def __init__(
+            self,
+            metric: Metric):
+        super(SimpleGAEmbedding, self).__init__()
+
+        self.metric = metric
+
+    def forward(self, x):
+        assert self.metric.dims() > x.shape[1]
+
+        result = torch.zeros(size=(x.shape[0], 1, self.metric.basis_dim(), *tuple(x.shape[2:])))
+        result[:, 0, 1:(x.shape[1] + 1), ...] = x
+        return result
+
+
 class ConvertLinearToGA(nn.Module):
     # Converts inputs of batch_size x num_input_features
     # to batch_size x num_output_features x ga_basis_dim
