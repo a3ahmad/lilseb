@@ -120,6 +120,7 @@ class Convert2DToGA(nn.Module):
     # Converts inputs from NCHW to NCGHW
     def __init__(
             self,
+            metric: Metric,
             in_channels: int,
             out_channels: int,
             kernel_size: _size_2_t,
@@ -148,13 +149,13 @@ class ConvertGATo2D(nn.Module):
     def __init__(
             self,
             metric: Metric,
-            in_features: int,
-            out_features: int):
+            in_channels: int,
+            out_channels: int):
         super(Convert2DToGA, self).__init__()
 
         self.metric = metric
         self.in_channels = in_channels
-        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
     def forward(self, x):
         return self.layer(x.view(
@@ -168,6 +169,7 @@ class Convert3DToGA(nn.Module):
     # Converts inputs from NCDHW to NCGDHW
     def __init__(
             self,
+            metric: Metric,
             in_channels: int,
             out_channels: int,
             kernel_size: _size_3_t,
@@ -196,13 +198,13 @@ class ConvertGATo3D(nn.Module):
     def __init__(
             self,
             metric: Metric,
-            in_features: int,
-            out_features: int):
+            in_channels: int,
+            out_channels: int):
         super(ConvertGATo3D, self).__init__()
 
         self.metric = metric
         self.in_channels = in_channels
-        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
     def forward(self, x):
         return self.layer(x.view(
