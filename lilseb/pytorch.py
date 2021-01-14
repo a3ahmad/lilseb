@@ -229,7 +229,7 @@ class GPLinear(nn.Module):
                 # p = input feature
                 # o = output feature
                 'ijk,bpi,poj->bok',
-                self.metric.geometricProductTensor, x, self.W)
+                self.metric.get_geometric_product(), x, self.W)
             if self.bias:
                 result = result + self.b
         return result
@@ -282,7 +282,7 @@ class GPConv1D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bciwv,vcoj->bokh',
-                self.metric.geometricProductTensor, x, self.W)
+                self.metric.get_geometric_product(), x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result
@@ -339,7 +339,7 @@ class GPConv2D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcihwlv,lvcoj->bokhw',
-                self.metric.geometricProductTensor, x, self.W)
+                self.metric.get_geometric_product(), x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result
@@ -400,7 +400,7 @@ class GPConv3D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcidhwmlv,mlvcoj->bokdhw',
-                self.metric.geometricProductTensor, x, self.W)
+                self.metric.get_geometric_product(), x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result

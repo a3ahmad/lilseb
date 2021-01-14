@@ -15,7 +15,7 @@ e4 = np.zeros(M.basis_dim())
 e4[0b1000] = 1.0
 e5 = np.zeros(M.basis_dim())
 e5[0b10000] = 1.0
-r = geometricProduct(e1, e5, M)
+r = geometric_product(e1, e5, M)
 indices = np.nonzero(r)[0]
 print(indices)
 print("{0:b}".format(indices[-1]))
@@ -23,7 +23,7 @@ print(r[indices])
 
 print("---")
 
-r = np.einsum('ijk,i,j->k', M.geometricProductTensor, e1 , e5)
+r = np.einsum('ijk,i,j->k', M.get_geometric_product(), e1 , e5)
 indices = np.nonzero(r)[0]
 print(indices)
 print("{0:b}".format(indices[-1]))
@@ -33,7 +33,7 @@ print("---")
 
 a = np.random.rand(3, 8, 32)
 b = np.random.rand(8, 16, 32)
-result = np.einsum('ijk,bpi,poj->bok', M.geometricProductTensor, a, b)
+result = np.einsum('ijk,bpi,poj->bok', M.get_geometric_product(), a, b)
 print(result.shape)
 
 print("---")
@@ -51,7 +51,7 @@ e4[0b1000] = 1.0
 e5 = np.zeros(M.basis_dim())
 e5[0b10000] = 1.0
 
-def printIndices(indices, r):
+def print_indices(indices, r):
     if len(indices) == 0:
         return "     0"
     label = ""
@@ -77,7 +77,7 @@ def printIndices(indices, r):
 e = [e1, e2, e3, e4, e5]
 for i in range(5):
     for j in range(5):
-        r = np.einsum('ijk,i,j->k', M.geometricProductTensor, e[i] , e[j])
+        r = np.einsum('ijk,i,j->k', M.get_geometric_product(), e[i] , e[j])
         indices = np.nonzero(r)[0]
-        print (printIndices(indices, r) + " ", end='')
+        print (print_indices(indices, r) + " ", end='')
     print("")
