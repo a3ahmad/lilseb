@@ -44,7 +44,7 @@ class SimpleGANormToFeatures(BaseGALayer):
 
     def forward(self, x):
         # Compute the reversion of x for the norm
-        revx = x.copy()
+        revx = x.clone()
         revx[:, :, self.metric.torchReversionIdx, ...] = -revx[:, :, self.metric.torchReversionIdx, ...]
         if len(x.shape) == 3:
             x = torch.einsum(
@@ -266,8 +266,23 @@ class GPLinear(BaseGALayer):
         self.versor = versor
 
     def forward(self, x):
-        result = None
-        if not self.versor:
+        result = torch.einsum(
+            # i = input GA 'a' component
+            # j = input GA 'b' component
+            # k = output GA component
+            # b = batch number
+            # p = input feature
+            # o = output feature
+            'ijk,poi,bpj->bok',
+            self.metric.torchGP, self.W, x)
+        if self.versor:
+            revW = self.W.clone()
+            revW[..., self.metric.torchReversionIdx] = -revW[..., self.metric.torchReversionIdx]
+            WSqNorm = torch.einsum(
+                'ijk,poi,poj->pok',
+                self.metric.torchGP, self.W, revW)
+            revW = revW / WSqNorm[:, :, 0, ...]
+
             result = torch.einsum(
                 # i = input GA 'a' component
                 # j = input GA 'b' component
@@ -276,9 +291,9 @@ class GPLinear(BaseGALayer):
                 # p = input feature
                 # o = output feature
                 'ijk,bpi,poj->bok',
-                self.metric.torchGP, x, self.W)
-            if self.bias:
-                result = result + self.b
+                self.metric.torchGP, result, revW)
+        if self.bias:
+            result = result + self.b
         return result
 
 
@@ -314,10 +329,29 @@ class GPConv1D(BaseGALayer):
         self.versor = versor
 
     def forward(self, x):
-        result = None
-        if not self.versor:
-            x = F.pad(x, self.padding, self.padding_mode)
-            x = x.unfold(2, self.W.shape[0], self.stride[0])
+        x = F.pad(x, self.padding, self.padding_mode)
+        x = x.unfold(2, self.W.shape[0], self.stride[0])
+        result = torch.einsum(
+            # i = input GA 'a' component
+            # j = input GA 'b' component
+            # k = output GA component
+            # b = batch number
+            # c = image channel
+            # w = image width
+            # v = convolution width
+            # o = output channel
+            'ijk,vcoi,bcjwv->bokh',
+            self.metric.torchGP, self.W, x)
+        if self.versor:
+            revW = self.W.clone()
+            revW[..., self.metric.torchReversionIdx] = -revW[..., self.metric.torchReversionIdx]
+            WSqNorm = torch.einsum(
+                'ijk,vcoi,vcoj->vcok',
+                self.metric.torchGP, self.W, revW)
+            revW = revW / WSqNorm[:, :, 0, ...]
+
+            result = F.pad(result, self.padding, self.padding_mode)
+            result = result.unfold(2, revW.shape[0], self.stride[0])
             result = torch.einsum(
                 # i = input GA 'a' component
                 # j = input GA 'b' component
@@ -327,10 +361,10 @@ class GPConv1D(BaseGALayer):
                 # w = image width
                 # v = convolution width
                 # o = output channel
-                'ijk,bciwv,vcoj->bokh',
-                self.metric.torchGP, x, self.W)
-            if self.b is not None:
-                result = result + self.b
+                'ijk,bcjwv,vcoj->bokh',
+                self.metric.torchGP, result, revW)
+        if self.b is not None:
+            result = result + self.b
         return result
 
 
@@ -367,11 +401,33 @@ class GPConv2D(BaseGALayer):
         self.versor = versor
 
     def forward(self, x):
-        result = None
-        if not self.versor:
-            x = F.pad(x, self.padding, self.padding_mode)
-            x = x.unfold(2, self.W.shape[0], self.stride[0])
-            x = x.unfold(3, self.W.shape[1], self.stride[1])
+        x = F.pad(x, self.padding, self.padding_mode)
+        x = x.unfold(2, self.W.shape[0], self.stride[0])
+        x = x.unfold(3, self.W.shape[1], self.stride[1])
+        result = torch.einsum(
+            # i = input GA 'a' component
+            # j = input GA 'b' component
+            # k = output GA component
+            # b = batch number
+            # c = image channel
+            # h = image height
+            # w = image width
+            # l = convolution height
+            # v = convolution width
+            # o = output channel
+            'ijk,lvcoi,bcjhwlv->bokhw',
+            self.metric.torchGP, self.W, x)
+        if self.versor:
+            revW = self.W.clone()
+            revW[..., self.metric.torchReversionIdx] = -revW[..., self.metric.torchReversionIdx]
+            WSqNorm = torch.einsum(
+                'ijk,lvcoi,lvcoj->lvcok',
+                self.metric.torchGP, self.W, revW)
+            revW = revW / WSqNorm[:, :, 0, ...]
+
+            result = F.pad(result, self.padding, self.padding_mode)
+            result = result.unfold(2, revW.shape[0], self.stride[0])
+            result = result.unfold(3, revW.shape[1], self.stride[1])
             result = torch.einsum(
                 # i = input GA 'a' component
                 # j = input GA 'b' component
@@ -384,9 +440,9 @@ class GPConv2D(BaseGALayer):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcihwlv,lvcoj->bokhw',
-                self.metric.torchGP, x, self.W)
-            if self.b is not None:
-                result = result + self.b
+                self.metric.torchGP, result, revW)
+        if self.b is not None:
+            result = result + self.b
         return result
 
 
@@ -424,12 +480,37 @@ class GPConv3D(BaseGALayer):
         self.versor = versor
 
     def forward(self, x):
-        result = None
-        if not self.versor:
-            x = F.pad(x, self.padding, self.padding_mode)
-            x = x.unfold(2, self.W.shape[0], self.stride[0])
-            x = x.unfold(3, self.W.shape[1], self.stride[1])
-            x = x.unfold(4, self.W.shape[2], self.stride[2])
+        x = F.pad(x, self.padding, self.padding_mode)
+        x = x.unfold(2, self.W.shape[0], self.stride[0])
+        x = x.unfold(3, self.W.shape[1], self.stride[1])
+        x = x.unfold(4, self.W.shape[2], self.stride[2])
+        result = torch.einsum(
+            # i = input GA 'a' component
+            # j = input GA 'b' component
+            # k = output GA component
+            # b = batch number
+            # c = image channel
+            # d = image depth
+            # h = image height
+            # w = image width
+            # m = convolution depth
+            # l = convolution height
+            # v = convolution width
+            # o = output channel
+            'ijk,mlvcoi,bcjdhwmlv->bokdhw',
+            self.metric.torchGP, self.W, x)
+        if self.versor:
+            revW = self.W.clone()
+            revW[..., self.metric.torchReversionIdx] = -revW[..., self.metric.torchReversionIdx]
+            WSqNorm = torch.einsum(
+                'ijk,mlvcoi,mlvcoj->mlvcok',
+                self.metric.torchGP, self.W, revW)
+            revW = revW / WSqNorm[:, :, 0, ...]
+            
+            result = F.pad(result, self.padding, self.padding_mode)
+            result = result.unfold(2, revW.shape[0], self.stride[0])
+            result = result.unfold(3, revW.shape[1], self.stride[1])
+            result = result.unfold(4, revW.shape[2], self.stride[2])
             result = torch.einsum(
                 # i = input GA 'a' component
                 # j = input GA 'b' component
@@ -444,7 +525,7 @@ class GPConv3D(BaseGALayer):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcidhwmlv,mlvcoj->bokdhw',
-                self.metric.torchGP, x, self.W)
-            if self.b is not None:
-                result = result + self.b
+                self.metric.torchGP, result, revW)
+        if self.b is not None:
+            result = result + self.b
         return result
