@@ -6,11 +6,11 @@ from torch.nn.common_types import _size_1_t, _size_2_t, _size_3_t
 from .algebra import Metric
 
 
-class SimpleGAEmbedding(nn.Module):
+class SimpleEmbedToGA(nn.Module):
     def __init__(
             self,
             metric: Metric):
-        super(SimpleGAEmbedding, self).__init__()
+        super(SimpleEmbedToGA, self).__init__()
 
         self.metric = metric
 
@@ -20,6 +20,34 @@ class SimpleGAEmbedding(nn.Module):
         result = torch.zeros(size=(x.shape[0], 1, self.metric.basis_dim(), *tuple(x.shape[2:])))
         result[:, 0, 1:(x.shape[1] + 1), ...] = x
         return result
+
+
+class SimpleGANormToFeatures(nn.Module):
+    def __init__(
+            self,
+            metric: Metric):
+        super(SimpleGANormToFeatures, self).__init__()
+
+        self.metric = metric
+
+    def forward(self, x):
+        if len(x.shape) == 3:
+            x = torch.einsum(
+                'ijk,abi,abj->abk',
+                self.metric.get_geometric_product(), x, x)
+        elif len(x.shape) == 4:
+            x = torch.einsum(
+                'ijk,abic,abjc->abkc',
+                self.metric.get_geometric_product(), x, x)
+        elif len(x.shape) == 5:
+            x = torch.einsum(
+                'ijk,abicd,abjcd->abkcd',
+                self.metric.get_geometric_product(), x, x)
+        elif len(x.shape) == 6:
+            x = torch.einsum(
+                'ijk,abicde,abjcde->abkcde',
+                self.metric.get_geometric_product(), x, x)
+        return torch.sum(x, dim=2)
 
 
 class ConvertLinearToGA(nn.Module):
@@ -97,17 +125,12 @@ class ConvertGATo1D(nn.Module):
             self,
             metric: Metric,
             in_channels: int,
-            out_channels: int,
-            kernel_size: _size_1_t,
-            stride: _size_1_t = 1,
-            padding: _size_1_t = 0,
-            bias: bool = True,
-            padding_mode: str = 'zeros'):
+            out_channels: int):
         super(Convert1DToGA, self).__init__()
 
         self.metric = metric
         self.in_channels = in_channels
-        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels, kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
+        self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
     def forward(self, x):
         return self.layer(x.view(
