@@ -6,13 +6,27 @@ from torch.nn.common_types import _size_1_t, _size_2_t, _size_3_t
 from .algebra import Metric
 
 
-class SimpleEmbedToGA(nn.Module):
+class BaseGALayer(nn.Module):
     def __init__(
             self,
             metric: Metric):
-        super(SimpleEmbedToGA, self).__init__()
-
         self.metric = metric
+
+        if not hasattr(self.metric, "torchGP"):
+            setattr(self.metric, "torchGP", torch.tensor(self.metric.get_geometric_product()))
+        if not hasattr(self.metric, "torchReversionIdx"):
+            setattr(self.metric, "torchReversionIdx", (torch.tensor(self.metric.reversion) < 0).nonzero())
+        if not hasattr(self.metric, "torchInvolutionIdx"):
+            setattr(self.metric, "torchInvolutionIdx", (torch.tensor(self.metric.involution) < 0).nonzero())
+        if not hasattr(self.metric, "torchConjugationIdx"):
+            setattr(self.metric, "torchConjugationIdx", (torch.tensor(self.metric.conjugation) < 0).nonzero())
+
+
+class SimpleEmbedToGA(BaseGALayer):
+    def __init__(
+            self,
+            metric: Metric):
+        super(SimpleEmbedToGA, self).__init__(metric)
 
     def forward(self, x):
         assert self.metric.dims() > x.shape[1]
@@ -22,35 +36,36 @@ class SimpleEmbedToGA(nn.Module):
         return result
 
 
-class SimpleGANormToFeatures(nn.Module):
+class SimpleGANormToFeatures(BaseGALayer):
     def __init__(
             self,
             metric: Metric):
-        super(SimpleGANormToFeatures, self).__init__()
-
-        self.metric = metric
+        super(SimpleGANormToFeatures, self).__init__(metric)
 
     def forward(self, x):
+        # Compute the reversion of x for the norm
+        revx = x.copy()
+        revx[:, :, self.metric.torchReversionIdx, ...] = -revx[:, :, self.metric.torchReversionIdx, ...]
         if len(x.shape) == 3:
             x = torch.einsum(
                 'ijk,abi,abj->abk',
-                self.metric.get_geometric_product(), x, x)
+                self.metric.torchGP, x, revx)
         elif len(x.shape) == 4:
             x = torch.einsum(
                 'ijk,abic,abjc->abkc',
-                self.metric.get_geometric_product(), x, x)
+                self.metric.torchGP, x, revx)
         elif len(x.shape) == 5:
             x = torch.einsum(
                 'ijk,abicd,abjcd->abkcd',
-                self.metric.get_geometric_product(), x, x)
+                self.metric.torchGP, x, revx)
         elif len(x.shape) == 6:
             x = torch.einsum(
                 'ijk,abicde,abjcde->abkcde',
-                self.metric.get_geometric_product(), x, x)
-        return torch.sum(x, dim=2)
+                self.metric.torchGP, x, revx)
+        return torch.sqrt(torch.sum(x, dim=2))
 
 
-class ConvertLinearToGA(nn.Module):
+class ConvertLinearToGA(BaseGALayer):
     # Converts inputs of batch_size x num_input_features
     # to batch_size x num_output_features x ga_basis_dim
     def __init__(
@@ -58,9 +73,8 @@ class ConvertLinearToGA(nn.Module):
             metric: Metric,
             in_features: int,
             out_features: int):
-        super(ConvertLinearToGA, self).__init__()
+        super(ConvertLinearToGA, self).__init__(metric)
 
-        self.metric = metric
         self.out_features = out_features
         self.layer = nn.Linear(in_features, out_features * metric.basis_dim())
 
@@ -70,7 +84,7 @@ class ConvertLinearToGA(nn.Module):
             result.shape[0], self.out_features, self.metric.basis_dim())
 
 
-class ConvertGAToLinear(nn.Module):
+class ConvertGAToLinear(BaseGALayer):
     # Converts inputs of batch_size x num_input_features x ga_basis_dim
     # to batch_size x num_output_features
     def __init__(
@@ -78,9 +92,8 @@ class ConvertGAToLinear(nn.Module):
             metric: Metric,
             in_features: int,
             out_features: int):
-        super(ConvertGAToLinear, self).__init__()
+        super(ConvertGAToLinear, self).__init__(metric)
 
-        self.metric = metric
         self.in_features = in_features
         self.layer = nn.Linear(in_features * metric.basis_dim(), out_features)
 
@@ -91,7 +104,7 @@ class ConvertGAToLinear(nn.Module):
                     self.in_features * self.metric.basis_dim()))
 
 
-class Convert1DToGA(nn.Module):
+class Convert1DToGA(BaseGALayer):
     # Converts inputs from NCW to NCGW, were G is the geometric algebra
     # basis dimension
     def __init__(
@@ -104,9 +117,8 @@ class Convert1DToGA(nn.Module):
             padding: _size_1_t = 0,
             bias: bool = True,
             padding_mode: str = 'zeros'):
-        super(Convert1DToGA, self).__init__()
+        super(Convert1DToGA, self).__init__(metric)
 
-        self.metric = metric
         self.out_channels = out_channels
         self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
@@ -119,16 +131,15 @@ class Convert1DToGA(nn.Module):
             result.shape[2])
 
 
-class ConvertGATo1D(nn.Module):
+class ConvertGATo1D(BaseGALayer):
     # Converts inputs from NCGW to NCW
     def __init__(
             self,
             metric: Metric,
             in_channels: int,
             out_channels: int):
-        super(Convert1DToGA, self).__init__()
+        super(Convert1DToGA, self).__init__(metric)
 
-        self.metric = metric
         self.in_channels = in_channels
         self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
@@ -139,7 +150,7 @@ class ConvertGATo1D(nn.Module):
             x.shape[3]))
 
 
-class Convert2DToGA(nn.Module):
+class Convert2DToGA(BaseGALayer):
     # Converts inputs from NCHW to NCGHW
     def __init__(
             self,
@@ -151,9 +162,8 @@ class Convert2DToGA(nn.Module):
             padding: _size_2_t = 0,
             bias: bool = True,
             padding_mode: str = 'zeros'):
-        super(Convert2DToGA, self).__init__()
+        super(Convert2DToGA, self).__init__(metric)
 
-        self.metric = metric
         self.out_channels = out_channels
         self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
@@ -167,16 +177,15 @@ class Convert2DToGA(nn.Module):
             result.shape[3])
 
 
-class ConvertGATo2D(nn.Module):
+class ConvertGATo2D(BaseGALayer):
     # Converts inputs from NCGHW to NCHW
     def __init__(
             self,
             metric: Metric,
             in_channels: int,
             out_channels: int):
-        super(Convert2DToGA, self).__init__()
+        super(Convert2DToGA, self).__init__(metric)
 
-        self.metric = metric
         self.in_channels = in_channels
         self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
@@ -188,7 +197,7 @@ class ConvertGATo2D(nn.Module):
             x.shape[4]))
 
 
-class Convert3DToGA(nn.Module):
+class Convert3DToGA(BaseGALayer):
     # Converts inputs from NCDHW to NCGDHW
     def __init__(
             self,
@@ -200,9 +209,8 @@ class Convert3DToGA(nn.Module):
             padding: _size_3_t = 0,
             bias: bool = True,
             padding_mode: str = 'zeros'):
-        super(Convert3DToGA, self).__init__()
+        super(Convert3DToGA, self).__init__(metric)
 
-        self.metric = metric
         self.out_channels = out_channels
         self.layer = nn.Conv2d(in_channels, out_channels * metric.basis_dim(), kernel_size, stride, padding, padding_mode=padding_mode, bias=bias)
 
@@ -216,16 +224,15 @@ class Convert3DToGA(nn.Module):
             result.shape[3],
             result.shape[4])
 
-class ConvertGATo3D(nn.Module):
+class ConvertGATo3D(BaseGALayer):
     # Converts inputs from NCGDHW to NCDHW
     def __init__(
             self,
             metric: Metric,
             in_channels: int,
             out_channels: int):
-        super(ConvertGATo3D, self).__init__()
+        super(ConvertGATo3D, self).__init__(metric)
 
-        self.metric = metric
         self.in_channels = in_channels
         self.layer = nn.Conv2d(in_channels * metric.basis_dim(), out_channels)
 
@@ -238,7 +245,7 @@ class ConvertGATo3D(nn.Module):
             x.shape[5]))
 
 
-class GPLinear(nn.Module):
+class GPLinear(BaseGALayer):
     def __init__(
             self,
             metric: Metric,
@@ -246,9 +253,8 @@ class GPLinear(nn.Module):
             out_features: int,
             bias: bool = True,
             versor: bool = False):  # Unsupported
-        super(GPLinear, self).__init__()
+        super(GPLinear, self).__init__(metric)
 
-        self.metric = metric
         self.W = nn.Parameter(
             torch.empty(
                 size=(in_features, out_features, metric.basis_dim())),
@@ -270,13 +276,13 @@ class GPLinear(nn.Module):
                 # p = input feature
                 # o = output feature
                 'ijk,bpi,poj->bok',
-                self.metric.get_geometric_product(), x, self.W)
+                self.metric.torchGP, x, self.W)
             if self.bias:
                 result = result + self.b
         return result
 
 
-class GPConv1D(nn.Module):
+class GPConv1D(BaseGALayer):
     def __init__(
             self,
             metric: Metric,
@@ -288,9 +294,8 @@ class GPConv1D(nn.Module):
             bias: bool = True,
             padding_mode: str = 'zeros',
             versor: bool = False):          # Unsupported
-        super(GPConv1D, self).__init__()
+        super(GPConv1D, self).__init__(metric)
 
-        self.metric = metric
         self.stride = stride
         self.padding = padding
         self.padding_mode = padding_mode
@@ -323,13 +328,13 @@ class GPConv1D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bciwv,vcoj->bokh',
-                self.metric.get_geometric_product(), x, self.W)
+                self.metric.torchGP, x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result
 
 
-class GPConv2D(nn.Module):
+class GPConv2D(BaseGALayer):
     def __init__(
             self,
             metric: Metric,
@@ -341,9 +346,8 @@ class GPConv2D(nn.Module):
             bias: bool = True,
             padding_mode: str = 'zeros',
             versor: bool = False):          # Unsupported
-        super(GPConv2D, self).__init__()
+        super(GPConv2D, self).__init__(metric)
 
-        self.metric = metric
         self.stride = stride
         self.padding = padding
         self.padding_mode = padding_mode
@@ -380,13 +384,13 @@ class GPConv2D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcihwlv,lvcoj->bokhw',
-                self.metric.get_geometric_product(), x, self.W)
+                self.metric.torchGP, x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result
 
 
-class GPConv3D(nn.Module):
+class GPConv3D(BaseGALayer):
     def __init__(
             self,
             metric: Metric,
@@ -398,9 +402,8 @@ class GPConv3D(nn.Module):
             bias: bool = True,
             padding_mode: str = 'zeros',
             versor: bool = False):          # Unsupported
-        super(GPConv3D, self).__init__()
+        super(GPConv3D, self).__init__(metric)
 
-        self.metric = metric
         self.stride = stride
         self.padding = padding
         self.padding_mode = padding_mode
@@ -441,7 +444,7 @@ class GPConv3D(nn.Module):
                 # v = convolution width
                 # o = output channel
                 'ijk,bcidhwmlv,mlvcoj->bokdhw',
-                self.metric.get_geometric_product(), x, self.W)
+                self.metric.torchGP, x, self.W)
             if self.b is not None:
                 result = result + self.b
         return result

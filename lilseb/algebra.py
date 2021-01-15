@@ -84,6 +84,11 @@ class Metric:
 
         self.geometric_product_tensor = generate_geometric_product(self)
 
+        # TODO: get the indices of the components to negate for reversion/involution/conjugation
+        self.reversion = [-1.0 ** (grade * (grade - 1) // 2) for grade in range(self.basis_dims())]
+        self.involution = [-1.0 ** grade for grade in range(self.basis_dims())]
+        self.conjugation = [-1.0 ** (grade * (grade + 1) // 2) for grade in range(self.basis_dims())]
+
     def get_geometric_product(self):
         return self.geometric_product_tensor
 
