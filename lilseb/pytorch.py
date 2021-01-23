@@ -3,8 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.common_types import _size_1_t, _size_2_t, _size_3_t
 from torch.nn.modules.utils import _single, _pair, _triple
+from torch.nn import init
 
 from .algebra import Metric
+
+import math
 
 from icecream import ic
 
@@ -298,6 +301,14 @@ class GPLinear(BaseGALayer):
             requires_grad=True) if bias else None
         self.bias = bias
         self.versor = versor
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.W, a=math.sqrt(5))
+        if self.b is not None:
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.w)
+            bound = 1 / math.sqrt(fan_in)
+            init.uniform_(self.named_buffers, -bound, bound)
 
     def forward(self, x):
         result = torch.einsum(
@@ -408,6 +419,14 @@ class GPConv1d(BaseGALayer):
                 torch.empty(size=(1, out_channels, metric.basis_dim(), 1)),
                 requires_grad=True)
         self.versor = versor
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.w, a=math.sqrt(5))
+        if self.b is not None:
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.w)
+            bound = 1 / math.sqrt(fan_in)
+            init.uniform_(self.b, -bound, bound)
 
     def forward(self, x):
         x = ga_pad(x, self.padding, self.padding_mode)
@@ -485,6 +504,14 @@ class GPConv2d(BaseGALayer):
                 torch.empty(size=(1, out_channels, metric.basis_dim(), 1, 1)),
                 requires_grad=True)
         self.versor = versor
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.w, a=math.sqrt(5))
+        if self.b is not None:
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.w)
+            bound = 1 / math.sqrt(fan_in)
+            init.uniform_(self.b, -bound, bound)
 
     def forward(self, x):
         x = ga_pad(x, self.padding, self.padding_mode)
@@ -569,6 +596,14 @@ class GPConv3d(BaseGALayer):
                 torch.empty(size=(1, out_channels, metric.basis_dim(), 1, 1, 1)),
                 requires_grad=True)
         self.versor = versor
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.w, a=math.sqrt(5))
+        if self.b is not None:
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.w)
+            bound = 1 / math.sqrt(fan_in)
+            init.uniform_(self.b, -bound, bound)
 
     def forward(self, x):
         x = ga_pad(x, self.padding, self.padding_mode)

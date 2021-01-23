@@ -202,7 +202,9 @@ else:
     model = GACifar10Classifier(M)
 
 # training
-trainer = pl.Trainer(gpus=1, precision=16,
-                     limit_train_batches=0.5, max_epochs=10000)
+trainer = pl.Trainer(
+    gpus=1,
+    terminate_on_nan=True,
+    max_epochs=10000)
 trainer.fit(model, train_loader, val_loader)
 trainer.test(model, test_loader)
